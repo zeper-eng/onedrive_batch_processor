@@ -50,3 +50,19 @@ local_download() {
 
 done
 }
+
+identify_unprocessed_files() {
+    local -n batch_ref="$1"
+    
+    for file in "${batch_ref[@]}"; do
+    base=$(basename "$file") #extract the file name from the path
+    name="${base%.*}" #remove the file extension to get the base name
+    expected="$BATCH/cropped_videos/${name}_cut.mp4"
+
+    if [ ! -f "$expected" ]; then
+        echo "Missing output for: $file"
+        echo "$file" >> "$FAILED_LOG"
+    fi
+done
+
+}
