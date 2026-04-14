@@ -13,7 +13,7 @@ Designed for batch processing of large, cloud-hosted datasets.
 #                  GLOBAL CONFIG                          #
 ###########################################################
 
-#virtual environment setup and imports
+#virtual environment for python packages setup and imports
 source path/to/venv/bin/activate
 source Modules/pipeline_utils.sh
 
@@ -29,7 +29,7 @@ BATCH_SIZE=5
 mkdir -p "$BATCH"
 mkdir -p "$DEST_PROCESSED"
 
-validate_input_scripts "$REF" "Modules/Horn_detection_pipeline_luis.py" "$FAILED_LOG" "$SRC" "$DEST_PROCESSED"
+validate_input_scripts "$REF" "Modules/video_event_detection.py" "$FAILED_LOG" "$SRC" "$DEST_PROCESSED"
 
 ###########################################################
 #                         RUNNER                          #
@@ -45,7 +45,7 @@ while [ ${#files[@]} -gt 0 ]; do
     
     # Download locally by forcing OneDrive to sync them
     local_download batch
-    python Modules/Horn_detection_pipeline_luis.py "$BATCH" "$REF"
+    python Modules/video_event_detection.py "$BATCH" "$REF"
 
     identify_unprocessed_files batch
 
