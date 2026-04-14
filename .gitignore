@@ -1,4 +1,1 @@
-venv
-venv/
-__pycache__/
-*.pyc
+batch_processing_old.sh
