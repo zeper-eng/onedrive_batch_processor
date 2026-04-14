@@ -1,0 +1,1 @@
+imagine this is a virtual enviornment that sets up an older python version and installs librosa numpy scipy etc

@@ -1,19 +1,29 @@
+"""
+End-to-end video processing pipeline:
+
+- Extracts audio from video files
+- Detects horn event via cross-correlation
+- Crops video around detected event
+- Outputs processed clips and summary CSV
+
+Designed for batch processing of large, cloud-hosted datasets.
+"""
+
 ###########################################################
 #                  GLOBAL CONFIG                          #
 ###########################################################
 
 #virtual environment setup and imports
-source venv/Scripts/activate
-source Modules/bash_functions.sh
-source Modules/operational.sh
+source path/to/venv/bin/activate
+source Modules/pipeline_utils.sh
 
 #global variables
 REF="Horn_Reference_sound.wav"
 FAILED_LOG="failed_files.txt" > "$FAILED_LOG"
-SRC="/Users/luis/OneDrive/Columbia University Irving Medical Center/Remote DAYC-2 and Maternal Cognition - Horncut_Highchair_Videos/Testing"
-DEST_PROCESSED="/Users/luis/OneDrive/Columbia University Irving Medical Center/Remote DAYC-2 and Maternal Cognition - Horncut_Highchair_Videos/Testing/Testing_output"
-BATCH=~/Projects/Horn_Task/local_batch
-BATCH_SIZE=2
+SRC="path/to/work/videos"
+DEST_PROCESSED="path/to/work/processed_output"
+BATCH="path/to/local_batch_workspace"
+BATCH_SIZE=5
 
 # create necessary directories and validate input scripts before processing
 mkdir -p "$BATCH"
@@ -39,13 +49,13 @@ while [ ${#files[@]} -gt 0 ]; do
 
     identify_unprocessed_files batch
 
-    # move processed outputs back to OneDrive
+    # move processed outputs back to source destination
     new_files=()
     move_and_wait_outputs new_files
 
-    sleep 20 #ja little extra-extra buffer room just incase
+    sleep 20 # little extra buffer just in case
 
-    # NOTE: this is Windows-specific, will NOT work on Mac (but this could be improved however, most enterprise centered workflows are windows)
+    # NOTE: this is Windows-specific, will NOT work on Mac
     find "$DEST_PROCESSED" -type f -exec attrib +U "{}" \;
 
     # clear local cache
