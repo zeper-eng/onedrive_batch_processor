@@ -36,7 +36,7 @@ The goal here wasn’t just to “get it working,” but to make the workflow re
 - large datasets
 - limited local storage
 
-I also wanted to clean up and modularize the original script into something reusable and easier to reason about, while showing how shell scripting can still be useful for system-level orchestration alongside Python.(and to demonstrate practical shell scripting for system-level orchestration)
+I also wanted to show how shell scripting can still be useful for system-level orchestration alongside Python.(and to demonstrate practical shell scripting for system-level orchestration)
 
 # Notes
 
