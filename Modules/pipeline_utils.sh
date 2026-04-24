@@ -45,10 +45,29 @@ local_download() {
     #
     #exit 1 #temporary exit to prevent accidental execution while testing
     for file in "${files_ref[@]}"; do
-        attrib -U "$file" 2>/dev/null
-        cp "$file" "$BATCH/"
+        echo "Downloading/copying: $file"
 
-done
+        attrib -U "$file" 2>/dev/null || true
+
+        for attempt in {1..10}; do
+            if cp "$file" "$BATCH/" 2>/dev/null; then
+                echo "Copied: $(basename "$file")"
+                break
+            fi
+
+            echo "⏳ Copy failed, retry $attempt/10..."
+            sleep 3
+        done
+
+        dest="$BATCH/$(basename "$file")"
+        if [ ! -s "$dest" ]; then
+            echo "FAILED COPY: $file"
+            echo "$file" >> "$FAILED_LOG"
+        fi
+
+        done
+    echo "Batch now contains:"
+    ls -lh "$BATCH"
 }
 
 # function to download the current batch of files locally by forcing OneDrive to sync them
