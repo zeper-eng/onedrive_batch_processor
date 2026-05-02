@@ -145,4 +145,3 @@ move_and_wait_outputs() {
         wait_for_stable_file "$f"
     done
 }
-
