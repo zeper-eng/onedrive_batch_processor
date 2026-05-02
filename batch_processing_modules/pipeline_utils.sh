@@ -45,27 +45,32 @@ local_download() {
     #
     #exit 1 #temporary exit to prevent accidental execution while testing
     for file in "${files_ref[@]}"; do
-        echo "Downloading/copying: $file"
+    echo "Downloading/copying: $file"
 
-        attrib -U "$file" 2>/dev/null || true
+    # Step 1: tell OneDrive to hydrate
+    attrib -U "$file" 2>/dev/null || true
 
-        for attempt in {1..10}; do
-            if cp "$file" "$BATCH/" 2>/dev/null; then
-                echo "Copied: $(basename "$file")"
-                break
-            fi
+    # Step 2: WAIT for hydration to actually finish
+    echo "Waiting for OneDrive to download: $(basename "$file")"
+    wait_for_stable_file "$file"
 
-            echo "Copy failed, retry $attempt/10..."
-            sleep 3
-        done
-
-        dest="$BATCH/$(basename "$file")"
-        if [ ! -s "$dest" ]; then
-            echo "FAILED COPY: $file"
-            echo "$file" >> "$FAILED_LOG"
+    # Step 3: now copy (with retries just in case)
+    for attempt in {1..10}; do
+        if cp "$file" "$BATCH/" 2>/dev/null; then
+            echo "Copied: $(basename "$file")"
+            break
         fi
 
-        done
+        echo "⏳ Copy failed, retry $attempt/10..."
+        sleep 3
+    done
+
+    dest="$BATCH/$(basename "$file")"
+    if [ ! -s "$dest" ]; then
+        echo "FAILED COPY: $file"
+        echo "$file" >> "$FAILED_LOG"
+    fi
+done
     echo "Batch now contains:"
     ls -lh "$BATCH"
 }
