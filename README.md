@@ -83,9 +83,6 @@ Hardcoded parts inside `feature_matrix_extraction.py`:
 - `TARGET_SR = 16000`
 - the example “failure list” (`FAILED_CUTS_new`) used to assign `label`
 
-**Labeling**
-- `feature_matrix_extraction.py` has an example hardcoded `FAILED_CUTS_new` list in-file.
-- `model_training.py` imports `FAILED_CUTS_new` from a python module named `convenience` (not included here).
 
 ## Model training 
 Look in:
