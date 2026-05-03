@@ -163,7 +163,7 @@ I also wanted to show how shell scripting can still be useful for system-level o
 
 # Notes
 
-- The included Python script is a simplified version of the original. The underlying processing logic was built by a teammate rather than by me, but it still gives a clear sense of the overall workflow and how the pipeline was being used. The signal/video processing itself is not especially uncommon, the more relevant part of this project for me is the orchestration layer around it: handling OneDrive-hosted files, batching, local processing, and moving outputs back reliably.
+- The included Python script is a simplified version of the original. 
 
 - In theory there would be a virtual environment inside of `venv/` that would activate the proper python package installations needed to run modules such as librosa etc. (the bash scripts assume `source venv/Scripts/activate`)
 
