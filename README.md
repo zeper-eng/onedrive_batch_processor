@@ -99,6 +99,7 @@ What it does:
 - `train_test_split(..., test_size=0.2, random_state=42, stratify=y)`
 - pipeline: `StandardScaler()` + `LogisticRegression(class_weight="balanced", max_iter=1000)`
 - converts probabilities to a class label using a hard threshold: `pred = (prob > 0.3).astype(int)`
+    - The 0.3 threshold is used in the training/evaluation script to classify test windows, but the main detection code uses model probabilities as scores and selects the highest-scoring window.
 - prints confusion matrix + classification report
 - saves error slices for manual review:
   - `feature_sets/false_negatives.csv`
