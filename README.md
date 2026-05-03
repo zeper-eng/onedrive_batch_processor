@@ -10,11 +10,9 @@ The goal was to crop it and keep the 10 seconds before the horn sound played and
 
 I refactored the pipeline in various ways including orchestrating a bash-side to scale processing of videos hosted on one-drive. I also engineered better features than comparing raw wavelengths, added a sliding window comparison component, and then trained a logistic regression using the same windows in the properly extracted videos compared to the improperly extracted videos to improve detection even further.
 
-Before my method 68 out of 143 processed videos failed meaning a fail rate of about 47.6% of videos.
+Before my method 194 out of 407 processed videos failed meaning a fail rate of about 47.6% of videos.
 
-after my method 54 out of 406 processed videos failed meaning a fail rate of about 13.3% of videos.
-
-After my MODEL 49 out of 407 processed videos failed meaning a fail rate of about 12.1%
+After my model 49 out of 407 processed videos failed meaning a fail rate of about 12.1%
 
 # Feature Engineering and Model Incorporation
 
