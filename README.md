@@ -59,25 +59,55 @@ If `model_path` is provided, the model is loaded with `joblib` and `score_window
 The feature columns it expects are hardcoded as:
 - `FEATURE_COLUMNS = ["peak_match", "peak_energy", "total_band_energy", "concentration"]`
 
-The model path the bash runner uses is:
-- `models/event_logistic_model.joblib` (set in `batch_vid_processing.sh`)
+Model file paths to pay attention to:
+- `batch_vid_processing.sh` points `MODEL` at: `models/event_logistic_model.joblib`
+- `vid_processing_modules/model_training.py` saves to: `feature_sets/horn_logistic_model_v2.joblib`
+
+So if you’re training with `model_training.py` and then running the batch crop pipeline, either:
+- move/rename the trained joblib into `models/event_logistic_model.joblib`, **or**
+- update `MODEL=...` in `batch_vid_processing.sh` to point at `feature_sets/horn_logistic_model_v2.joblib`
 
 ## Feature CSV generation (the stuff you train on)
 Look in:
 - `vid_processing_modules/feature_matrix_extraction.py`
-- `vid_processing_modules/model_training.py`
+- `batch_feature_extraction.sh`
 
-Both scripts write a CSV with window-level rows and a `label` column:
-- default output: `horn_training_features.csv`
-- `WINDOWS` are hardcoded to `[(9.5, 10.5), (10.5, 11.5)]`
-- sample rate is hardcoded to `TARGET_SR = 16000`
-- duplicates get removed at the end
+`feature_matrix_extraction.py` is the thing that actually builds window-level rows + labels and writes a CSV.
+`batch_feature_extraction.sh` is the “run it across everything in batches” wrapper; it calls:
+
+- `python vid_processing_modules/feature_matrix_extraction.py "$BATCH" "$REF" "$TRAINING_CSV"`
+
+and appends into the master CSV at:
+- `feature_sets/event_training_features_master.csv` (set by `TRAINING_CSV=...` in `batch_feature_extraction.sh`)
+
+Hardcoded parts inside `feature_matrix_extraction.py`:
+- `WINDOWS = [(9.5, 10.5), (10.5, 11.5)]`
+- `TARGET_SR = 16000`
+- the example “failure list” (`FAILED_CUTS_new`) used to assign `label`
 
 **Labeling**
 - `feature_matrix_extraction.py` has an example hardcoded `FAILED_CUTS_new` list in-file.
 - `model_training.py` imports `FAILED_CUTS_new` from a python module named `convenience` (not included here).
 
-So if you actually run `model_training.py` in this public repo as-is, you’ll need a `convenience.py` alongside it that defines `FAILED_CUTS_new`, or just use `feature_matrix_extraction.py` as the “stand-in” example.
+## Model training 
+Look in:
+- `vid_processing_modules/model_training.py`
+
+What it does:
+- reads: `feature_sets/horn_training_features_master.csv`
+- uses the same four features: `peak_match, peak_energy, total_band_energy, concentration`
+- `train_test_split(..., test_size=0.2, random_state=42, stratify=y)`
+- pipeline: `StandardScaler()` + `LogisticRegression(class_weight="balanced", max_iter=1000)`
+- converts probabilities to a class label using a hard threshold: `pred = (prob > 0.3).astype(int)`
+- prints confusion matrix + classification report
+- saves error slices for manual review:
+  - `feature_sets/false_negatives.csv`
+  - `feature_sets/false_positives.csv`
+- saves the trained model:
+  - `feature_sets/horn_logistic_model_v2.joblib`
+
+Note: `batch_feature_extraction.sh` writes to `feature_sets/event_training_features_master.csv` by default, but `model_training.py` reads `feature_sets/horn_training_features_master.csv`. Either rename the file, or change `csv_path` in `model_training.py` (or change `TRAINING_CSV` in the bash script) so they match.
+
 
 # Batch processing
 
