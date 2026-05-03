@@ -1,14 +1,14 @@
 # OneDrive Batch Video Processor
 Hybrid Bash + Python pipeline for processing OneDrive-hosted videos with batching and cloud file handling.
 
-I did my best generalize it for public viewing but keep in mind many parts are "hardcoded" for our specific use-case.For example the band we are most interested in is hardcoded in terms of the horn reference sound matching.
+I did my best to generalize it for public viewing, but many parts are hardcoded for our specific use case. For example the band we are most interested in is hardcoded in terms of the horn reference sound matching.
 
 # Background
 This project came out of a real workflow problem. A teammate a while back had built scaffolding for an automated video cutting pipeline which compared the raw waveform of a horn sound audio signal (using librosa) and the waveform of the video we were trying to detect the horn sound in.
 
 The goal was to crop it and keep the 10 seconds before the horn sound played and the 120 seconds after.
 
-I refactored the pipeline in various ways including orchestrating a bash-side to scale processing of videos hosted on one-drive. I also engineered better features than comparing raw wavelengths, added a sliding window comparison component, and then trained a logistic regression using the same windows in the properly extracted videos compared to the improperly extracted videos to improve detection even further.
+I refactored the pipeline in various ways including orchestrating a bash-side to scale processing of videos hosted on OneDrive. I also engineered better features than comparing raw wavelengths, added a sliding window comparison component, and then trained a logistic regression using the same windows in the properly extracted videos compared to the improperly extracted videos to improve detection even further.
 
 Before my method 194 out of 407 processed videos failed meaning a fail rate of about 47.6% of videos.
 
@@ -171,4 +171,4 @@ I also wanted to show how shell scripting can still be useful for system-level o
 
 - The file `failed_files.txt`, and the directory `local_batch/` are meant to simulate the kind of output you would get when running the pipeline.
 
-*DISCLAIMER*: I AM NOT AN AUDIO EXPERT. THEESE FEATURES WHERE FORM WHAT I GATHERED WHERE COMMON PRACTICE AND WORKED FOR MY PURPOSES I AM SURE THERE ARE BETTER ALTERNATIVES.
+*DISCLAIMER*: I am not an audio expert. These features were based on methods I found were common practice and worked for my purpose. I am sure there are better alternatives.
