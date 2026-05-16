@@ -15,20 +15,20 @@
 #virtual environment for python packages setup and imports
 source venv/Scripts/activate
 source batch_processing_modules/pipeline_utils.sh
-source batch_processing_modules/convenience.sh #this has my array of broken files
 
-\
+
 #global variables
 PROJECT_DIR="$HOME/Projects/video_event_detection"
 REF="$PROJECT_DIR/reference_audio/reference_event.wav"
-MODEL="$PROJECT_DIR/models/event_logistic_model.joblib"
+MODEL="$PROJECT_DIR/feature_sets/horn_logistic_model_v2.joblib"
 FAILED_LOG="$PROJECT_DIR/logs/failed_files.txt"
 SRC="$PROJECT_DIR/input_videos"
 DEST_PROCESSED="$PROJECT_DIR/processed_event_clips"
 BATCH="$PROJECT_DIR/local_batch"
 BATCH_SIZE=5
-mkdir -p "$(dirname "$FAILED_LOG")" > "$FAILED_LOG"
 
+mkdir -p "$(dirname "$FAILED_LOG")"
+> "$FAILED_LOG"
 
 # create necessary directories and validate input scripts before processing
 mkdir -p "$BATCH"
@@ -41,7 +41,7 @@ validate_input_scripts "$MODEL" "$REF" "vid_processing_modules/video_event_detec
 ###########################################################
 
 # Build master file list (relative paths)
-mapfile -t files < <(find "$SRC" -type f -iname "*.mp4") #for now i went recursive so top then bototom cuz not all were edited but this can change
+mapfile -t files < <(find "$SRC" -type f -iname "*.mp4") #for now i went recursive so top then bottom cuz not all were edited but this can change
 
 while [ ${#files[@]} -gt 0 ]; do
 

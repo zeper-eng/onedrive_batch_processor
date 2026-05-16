@@ -21,18 +21,20 @@ source batch_processing_modules/pipeline_utils.sh
 #global variables
 PROJECT_DIR="$HOME/Projects/video_event_detection"
 REF="$PROJECT_DIR/reference_audio/reference_event.wav"
-FAILED_LOG="$PROJECT_DIR/logs/failed_files.txt"
+FAILED_LOG="$PROJECT_DIR/logs/failed_featurextraction_files.txt"
 SRC="$PROJECT_DIR/input_videos"
-TRAINING_CSV="$PROJECT_DIR/feature_sets/event_training_features_master.csv"
+TRAINING_CSV="$PROJECT_DIR/feature_sets/horn_training_features_master.csv"
 BATCH="$PROJECT_DIR/local_batch"
 BATCH_SIZE=20
 
+mkdir -p "$(dirname "$FAILED_LOG")"
+> "$FAILED_LOG"
 
 # create necessary directories and validate input scripts before processing
 mkdir -p "$BATCH"
 mkdir -p "$(dirname "$TRAINING_CSV")"
 
-validate_input_scripts "$REF" "vid_processing_modules/feature_matrix_extraction.py" "$FAILED_LOG" "$SRC" 
+validate_input_scripts "$REF" "vid_processing_modules/feature_matrix_creation.py" "$FAILED_LOG" "$SRC" 
 
 ###########################################################
 #                         RUNNER                          #
@@ -53,7 +55,7 @@ while [ ${#files[@]} -gt 0 ]; do
     local_download batch
 
     # Extract features and append to master CSV
-    python vid_processing_modules/feature_matrix_extraction.py "$BATCH" "$REF" "$TRAINING_CSV"
+    python vid_processing_modules/feature_matrix_creation.py "$BATCH" "$REF" "$TRAINING_CSV"
 
     # Delete local copies after features are saved
     rm -f "$BATCH"/*.mp4 2>/dev/null

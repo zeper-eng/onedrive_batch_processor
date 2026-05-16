@@ -61,7 +61,7 @@ local_download() {
             break
         fi
 
-        echo "⏳ Copy failed, retry $attempt/10..."
+        echo " Copy failed, retry $attempt/10..."
         sleep 3
     done
 

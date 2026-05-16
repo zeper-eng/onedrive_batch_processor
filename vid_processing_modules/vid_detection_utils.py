@@ -12,15 +12,30 @@ import librosa
 import numpy as np
 import pandas as pd
 from moviepy.editor import VideoFileClip
-
+from feature_extraction import extract_sRQA_features_from_audio
 
 VIDEO_EXTENSIONS = (".mp4", ".avi", ".mov", ".mkv")
-FEATURE_COLUMNS = [
+FEATURES = [
     "peak_match",
     "peak_energy",
     "total_band_energy",
     "concentration",
+    "RR",
+    "DET",
+    "L",
+    "Lmax",
+    "DIV",
+    "ENTR",
+    "LAM",
+    "TT",
+    "Vmax",
+    "VENTR",
+    "MRT",
+    "RTE",
+    "NMPRT",
+    "TREND",
 ]
+TARGET_SR = 16000
 
 
 def select_base_folder():
@@ -34,13 +49,7 @@ def select_base_folder():
 def select_airhorn_file():
     root = tk.Tk()
     root.withdraw()
-    file_path = filedialog.askopenfilename(
-        title="Select reference airhorn file",
-        filetypes=[
-            ("Audio/Video files", "*.mp4 *.wav *.mp3 *.m4a *.avi *.mov *.mkv"),
-            ("All files", "*.*"),
-        ],
-    )
+    file_path = filedialog.askopenfilename(title="Select reference airhorn file",filetypes=[("Audio/Video files", "*.mp4 *.wav *.mp3 *.m4a *.avi *.mov *.mkv"),("All files", "*.*"),],)
     root.destroy()
     return file_path
 
@@ -117,7 +126,7 @@ def load_audio_from_video(path):
     video.audio.write_audiofile(temp_path, verbose=False, logger=None)
     video.close()
 
-    audio, sr = librosa.load(temp_path, sr=None)
+    audio, sr = librosa.load(temp_path, sr=TARGET_SR)
     os.remove(temp_path)
 
     return audio, sr
@@ -129,7 +138,7 @@ def load_airhorn_audio(airhorn_path):
     if ext in VIDEO_EXTENSIONS:
         return load_audio_from_video(airhorn_path)
 
-    return librosa.load(airhorn_path, sr=None)
+    return librosa.load(airhorn_path, sr=TARGET_SR)
 
 
 def calculate_harmonic_frequencies(freqs, top_indices, band_mask, harmonic_multipliers):
@@ -151,11 +160,7 @@ def extract_window_features(window, band_mask, horn_band, harmonic_indices):
     window_fft = np.abs(np.fft.rfft(window))
     window_band = window_fft[band_mask]
 
-    peak_match = np.dot(
-        horn_band[harmonic_indices],
-        window_band[harmonic_indices],
-    )
-
+    peak_match = np.dot(horn_band[harmonic_indices],window_band[harmonic_indices],)
     peak_energy = np.sum(window_band[harmonic_indices])
     total_band_energy = np.sum(window_band) + 1e-12
     concentration = peak_energy / total_band_energy
@@ -174,46 +179,60 @@ def score_window(features, model=None):
     if model is None:
         return features["raw_score"], None
 
-    feature_row = pd.DataFrame([{col: features[col] for col in FEATURE_COLUMNS}])
+    feature_row = pd.DataFrame([{col: features[col] for col in FEATURES}])
     model_probability = float(model.predict_proba(feature_row)[0, 1])
 
     return model_probability, model_probability
 
 
-def sliding_window_detection(
-    video_audio,
-    window_size,
-    hop_size,
-    band_mask,
-    horn_band,
-    harmonic_indices,
-    model=None,
-):
-    best_score = -np.inf
+def sliding_window_detection(video_audio,window_size,hop_size,band_mask,horn_band,harmonic_indices,model=None,):
+    best_raw_score = -np.inf
+    best_model_prob = -np.inf
     best_sample = 0
     best_features = None
-    best_model_probability = None
+    candidate_windows = []
 
     for start in range(0, len(video_audio) - window_size, hop_size):
         window = video_audio[start:start + window_size]
 
-        features = extract_window_features(
-            window,
-            band_mask,
-            horn_band,
-            harmonic_indices,
-        )
+        features = extract_window_features(window,band_mask,horn_band,harmonic_indices,)
+        raw_score = features["raw_score"]
 
-        score, model_probability = score_window(features, model=model)
+        if model is None:
+            if raw_score > best_raw_score:
+                best_raw_score = raw_score
+                best_sample = start
+                best_features = features
+        else:
+            candidate_windows.append({
+                "score": raw_score,
+                "window": window.copy(),
+                "start": start,
+                "fft_features": {k: features[k] for k in features if k != "raw_score"},
+            })
 
-        if score > best_score:
-            best_score = score
-            best_sample = start
-            best_features = features
-            best_model_probability = model_probability
+    if model is not None:
+        candidate_windows = sorted(candidate_windows,key=lambda x: x["score"],reverse=True,)[:300]
 
-    return best_score, best_sample, best_model_probability, best_features
+        for candidate in candidate_windows:
+            srqa_features = extract_sRQA_features_from_audio(candidate["window"],sr=16000,)
 
+            window_srqa_features = {k: v for k, v in srqa_features.items()if k not in ["symbols", "rms_sequence", "recurrence_matrix"]}
+
+            combined_features = {**candidate["fft_features"],**window_srqa_features,}
+
+            model_prob = float(model.predict_proba(pd.DataFrame([combined_features]))[0, 1])
+
+            if model_prob > best_model_prob:
+                best_model_prob = model_prob
+                best_raw_score = candidate["score"]
+                best_sample = candidate["start"]
+                best_features = combined_features
+
+    if model is None:
+        return best_raw_score, best_sample, None, best_features
+    else:
+        return best_raw_score, best_sample, best_model_prob, best_features
 
 def detect_horn(video_audio, airhorn, sr, model=None):
     window_size = int(sr * 1.0)
@@ -243,15 +262,7 @@ def detect_horn(video_audio, airhorn, sr, model=None):
         harmonic_multipliers=[1, 2, 3],
     )
 
-    best_score, best_sample, model_probability, best_features = sliding_window_detection(
-        video_audio=video_audio,
-        window_size=window_size,
-        hop_size=hop_size,
-        band_mask=band_mask,
-        horn_band=horn_band,
-        harmonic_indices=harmonic_indices,
-        model=model,
-    )
+    best_score, best_sample, model_probability, best_features = sliding_window_detection(video_audio=video_audio,window_size=window_size,hop_size=hop_size,band_mask=band_mask,horn_band=horn_band,harmonic_indices=harmonic_indices,model=model)
 
     horn_time = best_sample / sr
 
@@ -261,41 +272,15 @@ def detect_horn(video_audio, airhorn, sr, model=None):
 def crop_video(video_path, output_path, start, end):
     duration = end - start
 
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-ss",
-        str(start),
-        "-i",
-        video_path,
-        "-t",
-        str(duration),
-        "-c",
-        "copy",
-        output_path,
-    ]
+    cmd = ["ffmpeg","-y","-ss",str(start),"-i",video_path,"-t",str(duration),"-c","copy",output_path,]
 
-    subprocess.run(
-        cmd,
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,)
 
     return os.path.exists(output_path), output_path
 
 
-def process_single_video(
-    video_file,
-    video_folder,
-    audio_folder,
-    airhorn,
-    sr_horn,
-    output_folder,
-    model=None,
-):
+def process_single_video(video_file,video_folder,audio_folder,airhorn,sr_horn,output_folder,model=None,):
     stem = os.path.splitext(video_file)[0]
-
     video_path = os.path.join(video_folder, video_file)
     audio_path = os.path.join(audio_folder, f"{stem}.wav")
     output_path = os.path.join(output_folder, f"{stem}_cut.mp4")
@@ -305,13 +290,7 @@ def process_single_video(
 
     video_audio, sr = librosa.load(audio_path, sr=sr_horn)
 
-    horn_time, score, model_probability, features = detect_horn(
-        video_audio=video_audio,
-        airhorn=airhorn,
-        sr=sr,
-        model=model,
-    )
-
+    horn_time, score, model_probability, features = detect_horn(video_audio=video_audio,airhorn=airhorn,sr=sr,model=model,)
     video = VideoFileClip(video_path)
     start = max(horn_time - 10, 0)
     end = min(horn_time + 120, video.duration)
@@ -335,19 +314,11 @@ def process_single_video(
         "peak_energy": features["peak_energy"],
         "total_band_energy": features["total_band_energy"],
         "concentration": features["concentration"],
-        "raw_score": features["raw_score"],
         "output_path": final_path,
     }
 
 
-def detect_horn_and_crop_videos(
-    video_files,
-    video_folder,
-    audio_folder,
-    base_folder,
-    airhorn_file=None,
-    model_path=None,
-):
+def detect_horn_and_crop_videos(video_files,video_folder,audio_folder,base_folder,airhorn_file=None,model_path=None,):
     airhorn_path = get_airhorn_path(airhorn_file)
 
     if airhorn_path is None:
@@ -388,18 +359,7 @@ def detect_horn_and_crop_videos(
     return len(results), results, output_folder, csv_path, airhorn_path
 
 
-def generate_summary_report(
-    base_folder,
-    video_files,
-    successful_extractions,
-    failed_extractions,
-    successful_crops=None,
-    processing_results=None,
-    cropped_video_folder=None,
-    results_csv_path=None,
-    airhorn_path=None,
-    audio_folder=None,
-):
+def generate_summary_report(base_folder,video_files,successful_extractions,failed_extractions,successful_crops=None,processing_results=None,cropped_video_folder=None,results_csv_path=None,airhorn_path=None,audio_folder=None,):
     print(f"Videos found: {len(video_files)}")
     print(f"Audio extracted: {successful_extractions}")
     print(f"Audio failed: {len(failed_extractions)}")

@@ -15,6 +15,20 @@ FEATURES = [
     "peak_energy",
     "total_band_energy",
     "concentration",
+    "RR",
+    "DET",
+    "L",
+    "Lmax",
+    "DIV",
+    "ENTR",
+    "LAM",
+    "TT",
+    "Vmax",
+    "VENTR",
+    "MRT",
+    "RTE",
+    "NMPRT",
+    "TREND",
 ]
 
 X = df[FEATURES]

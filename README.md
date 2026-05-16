@@ -8,11 +8,11 @@ This project came out of a real workflow problem. A teammate a while back had bu
 
 The goal was to crop it and keep the 10 seconds before the horn sound played and the 120 seconds after.
 
-I refactored the pipeline in various ways including orchestrating a bash-side to scale processing of videos hosted on OneDrive. I also engineered better features than comparing raw wavelengths, added a sliding window comparison component, and then trained a logistic regression using the same windows in the properly extracted videos compared to the improperly extracted videos to improve detection even further.
+I refactored the pipeline in various ways including orchestrating a bash-side to scale processing of videos hosted on OneDrive. I also engineered better features than comparing raw waveforms, added a sliding window comparison component, and then trained a logistic regression using the same windows in the properly extracted videos compared to the improperly extracted videos to improve detection even further.
 
 Before my method 194 out of 407 processed videos failed meaning a fail rate of about 47.6% of videos.
 
-After my model 49 out of 407 processed videos failed meaning a fail rate of about 12.1%
+After incorporating sRQA (symbolic Recurrence Quantification Analysis) features alongside the FFT/harmonic features, 33 out of 407 processed videos failed, bringing the fail rate down to approximately 8.1%.
 
 # Feature Engineering and Model Incorporation
 
@@ -52,10 +52,10 @@ Look in:
 - `vid_processing_modules/vid_detection_utils.py` (`score_window()`)
 
 If `model_path` is provided, the model is loaded with `joblib` and `score_window()` switches from `raw_score` to:
-- `model.predict_proba([[peak_match, peak_energy, total_band_energy, concentration]])`
+- The current model uses 18 features: the original 4 FFT/harmonic features plus 14 sRQA features derived from the RMS energy envelope of each audio window. See extract_sRQA_features_from_audio() in feature_extraction.py for the full sRQA implementation
 
 The feature columns it expects are hardcoded as:
-- `FEATURE_COLUMNS = ["peak_match", "peak_energy", "total_band_energy", "concentration"]`
+- `FEATURES = ["peak_match","peak_energy","total_band_energy","concentration","RR","DET","L","Lmax","DIV","ENTR","LAM","TT","Vmax","VENTR","MRT","RTE","NMPRT","TREND"]`
 
 Model file paths to pay attention to:
 - `batch_vid_processing.sh` points `MODEL` at: `models/event_logistic_model.joblib`
@@ -90,7 +90,7 @@ Look in:
 
 What it does:
 - reads: `feature_sets/horn_training_features_master.csv`
-- uses the same four features: `peak_match, peak_energy, total_band_energy, concentration`
+- uses the same 18 features: `"peak_match","peak_energy","total_band_energy","concentration","RR","DET","L","Lmax","DIV","ENTR","LAM","TT","Vmax","VENTR","MRT","RTE","NMPRT","TREND"`
 - `train_test_split(..., test_size=0.2, random_state=42, stratify=y)`
 - pipeline: `StandardScaler()` + `LogisticRegression(class_weight="balanced", max_iter=1000)`
 - converts probabilities to a class label using a hard threshold: `pred = (prob > 0.3).astype(int)`
@@ -159,7 +159,7 @@ The goal here wasn’t just to “get it working,” but to make the workflow re
 - large datasets
 - limited local storage
 
-I also wanted to show how shell scripting can still be useful for system-level orchestration alongside Python.(and to demonstrate practical shell scripting for system-level orchestration)
+I also wanted to show how shell scripting can still be useful for system-level orchestration alongside Python.
 
 # Notes
 
