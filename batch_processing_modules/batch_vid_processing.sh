@@ -1,11 +1,9 @@
-#End-to-end video processing pipeline:
+# End-to-end video processing pipeline:
 #
-#- Extracts audio from video files
-#- Detects horn event via cross-correlation
-#- Crops video around detected event
-#- Outputs processed clips and summary CSV
-#
-#Designed for batch processing of large, cloud-hosted datasets.
+# - Extracts audio from video files
+# - Detects horn event using FFT/harmonic features and optional model scoring
+# - Crops video around detected event
+# - Outputs processed clips and summary CSV
 
 
 ###########################################################

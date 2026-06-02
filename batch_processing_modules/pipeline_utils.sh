@@ -40,10 +40,6 @@ get_next_batch() {
 
 local_download() {
     local -n files_ref="$1"
-    #echo "Downloading batch of ${#files_ref[@]} files locally..."
-    #printf '%s\n' "${files_ref[@]}"
-    #
-    #exit 1 #temporary exit to prevent accidental execution while testing
     for file in "${files_ref[@]}"; do
     echo "Downloading/copying: $file"
 
