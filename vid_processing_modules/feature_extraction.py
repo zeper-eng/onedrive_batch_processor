@@ -64,16 +64,11 @@ def save_recurrence_plot_colored(recurrence_matrix, symbols, output_name):
     return out_path
 
 def extract_sRQA_features(R, lmin=2):
-    """
-    Extract basic symbolic RQA (sRQA) features from a binary recurrence matrix.
-    """
 
     R = np.asarray(R)
     N = R.shape[0]
 
-    # ------------------------------------------------------------
     # Shannon entropy from empirical counts
-    # ------------------------------------------------------------
     def shannon_entropy(values):
         if len(values) == 0:
             return 0.0
@@ -84,9 +79,7 @@ def extract_sRQA_features(R, lmin=2):
 
         return -np.sum(probs * np.log(probs + 1e-12))
 
-    # ------------------------------------------------------------
     # Diagonal line lengths
-    # ------------------------------------------------------------
     diag_lengths = []
 
     for offset in range(-N + 1, N):
@@ -105,9 +98,7 @@ def extract_sRQA_features(R, lmin=2):
         if run >= lmin:
             diag_lengths.append(run)
 
-    # ------------------------------------------------------------
     # Vertical line lengths
-    # ------------------------------------------------------------
     vert_lengths = []
 
     for col in range(N):
@@ -124,17 +115,13 @@ def extract_sRQA_features(R, lmin=2):
         if run >= lmin:
             vert_lengths.append(run)
 
-    # ------------------------------------------------------------
     # Recurrence counts
-    # ------------------------------------------------------------
     total_points = N * N
     recurrent_points = np.sum(R)
 
     RR = recurrent_points / total_points
 
-    # ------------------------------------------------------------
     # Diagonal measures
-    # ------------------------------------------------------------
     diag_points = np.sum(diag_lengths)
 
     DET = diag_points / recurrent_points if recurrent_points > 0 else 0
@@ -147,9 +134,7 @@ def extract_sRQA_features(R, lmin=2):
 
     ENTR = shannon_entropy(diag_lengths)
 
-    # ------------------------------------------------------------
     # Vertical measures
-    # ------------------------------------------------------------
     vert_points = np.sum(vert_lengths)
 
     LAM = vert_points / recurrent_points if recurrent_points > 0 else 0
@@ -160,9 +145,7 @@ def extract_sRQA_features(R, lmin=2):
 
     VENTR = shannon_entropy(vert_lengths)
 
-    # ------------------------------------------------------------
     # Recurrence times
-    # ------------------------------------------------------------
     recurrence_times = []
 
     for row in range(N):
@@ -181,9 +164,7 @@ def extract_sRQA_features(R, lmin=2):
 
     NMPRT = len(recurrence_times)
 
-    # ------------------------------------------------------------
     # TREND
-    # ------------------------------------------------------------
     diagonal_rr = []
 
     for offset in range(N):
@@ -270,84 +251,6 @@ def prepare_horn_template(airhorn_audio, sr):
     }
 
 def extract_rms_sequence(audio_chunk, sr, frame_ms=20, hop_ms=10):
-    """ needed a docstring for this one to keep myself oriented although this will all be internal
-    Compute a short-time RMS energy sequence for one audio chunk.
-
-    This function does NOT return one RMS value for the whole chunk.
-    Instead, it breaks the chunk into many small overlapping frames and
-    computes one RMS value per frame. The result is a time-series describing
-    how the signal's loudness/energy changes inside the chunk.
-
-    For example, if audio_chunk is a 1-second window and sr is 44,100 Hz:
-
-        frame_ms = 20  -> each RMS value is computed from 20 ms of audio
-                          20 ms * 44,100 samples/sec = 882 samples
-
-        hop_ms   = 10  -> after computing one RMS value, move forward 10 ms
-                          10 ms * 44,100 samples/sec = 441 samples
-
-    So the RMS sequence is computed like:
-
-        RMS #1: samples from 0 ms   to 20 ms
-        RMS #2: samples from 10 ms  to 30 ms
-        RMS #3: samples from 20 ms  to 40 ms
-        RMS #4: samples from 30 ms  to 50 ms
-        ...
-
-    Because the frame is 20 ms and the hop is 10 ms, adjacent frames overlap
-    by 10 ms. This gives a smooth energy envelope rather than a single summary
-    number.
-
-    For a 1-second chunk with center=False, the approximate number of RMS values is:
-
-        1 + floor((len(audio_chunk) - frame_length) / hop_length)
-
-    With a 1-second chunk, 20 ms frames, and 10 ms hops, this is usually 99 values:
-
-        1 + floor((1000 ms - 20 ms) / 10 ms)
-        = 1 + 98
-        = 99
-
-    Each returned RMS value is:
-
-        sqrt(mean(frame_samples ** 2))
-
-    This is similar to a smoothed absolute-value/loudness curve. It removes the
-    fast positive/negative oscillation of the waveform and keeps the slower
-    energy shape inside the window, such as:
-
-        quiet baseline -> horn onset -> rising energy -> sustained loud region
-
-    That makes this sequence a better input for symbolic recurrence analysis
-    than the raw waveform samples. The raw waveform mainly reflects rapid
-    acoustic oscillation, while this RMS sequence reflects the within-window
-    energy pattern that can be symbolized and used to build recurrence plots.
-
-    Parameters
-    ----------
-    audio_chunk : np.ndarray
-        A 1D audio waveform segment, usually one detector window such as
-        a 1-second chunk.
-
-    sr : int
-        Sampling rate of the audio in samples per second.
-
-    frame_ms : int or float, default=20
-        Length of each small RMS frame in milliseconds. Larger values produce
-        a smoother RMS sequence. Smaller values preserve more rapid changes.
-
-    hop_ms : int or float, default=10
-        Step size between consecutive RMS frames in milliseconds. Smaller values
-        produce more RMS points and more overlap. Larger values produce fewer
-        RMS points.
-
-    Returns
-    -------
-    rms : np.ndarray
-        A 1D array of RMS energy values. For a 1-second chunk with the default
-        20 ms frame and 10 ms hop, this will usually contain 99 values.
-
-    """
 
     frame_length = int(sr * frame_ms / 1000)
     hop_length = int(sr * hop_ms / 1000)
@@ -383,47 +286,7 @@ def symbolize_rms_quantiles(rms, n_bins=5):
     return np.asarray(symbols, dtype=int)
 
 def create_recurrence_matrix(symbols, m=1, d=1):
-    """
-    Create a symbolic recurrence matrix from a sequence of symbols.
-
-    Each row/column represents a time-indexed symbolic state derived from
-    the RMS envelope of an audio window.
-
-    Parameters
-    ----------
-    symbols : array-like
-        Symbolized RMS sequence, e.g. [1, 2, 3, 4, 2, ...].
-
-    m : int, default=1
-        Embedding dimension / word length.
-
-        m=1 compares individual symbols:
-            [symbol[i]]
-
-        m=3 compares 3-symbol patterns:
-            [symbol[i], symbol[i+d], symbol[i+2d]]
-
-    d : int, default=1
-        Time delay / spacing between symbols inside each embedded word.
-
-        d=1 uses adjacent symbols:
-            [symbol[i], symbol[i+1], symbol[i+2]]
-
-        d=2 skips every other symbol:
-            [symbol[i], symbol[i+2], symbol[i+4]]
-
-        In your RMS setup, if hop_ms=10:
-            d=1 means 10 ms spacing
-            d=2 means 20 ms spacing
-            d=5 means 50 ms spacing
-
-
-    Returns
-    -------
-    recurrence_matrix : np.ndarray
-        Square binary matrix where recurrence_matrix[i, j] = 1 if the symbolic
-        state/pattern at time i equals the symbolic state/pattern at time j.
-    """
+    
     symbols = np.asarray(symbols)
 
     n_states = len(symbols) - (m - 1) * d

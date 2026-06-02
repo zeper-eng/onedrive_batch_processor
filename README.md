@@ -29,7 +29,7 @@ The features:
 
 When theres no model:
 
-- A sliding window approach is used where starting from the 0th second, and in .5s hops, overlapping windows are scaned and `raw_score` is calculated.
+- A sliding window approach is used where starting from the 0th second, and in .5s hops, overlapping windows are scanned and `raw_score` is calculated.
 - The video with the best raw score is how our video cutting point is decided on.
 
 I ran this on all videos and signifcantly reduced fail rate to about 15%. Now someone had to go through and check what worked and what didn't (which I also did).
