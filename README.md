@@ -4,87 +4,59 @@ Hybrid Bash + Python pipeline for processing OneDrive-hosted videos with batchin
 I did my best to generalize it for public viewing, but many parts are hardcoded for our specific use case. For example the band we are most interested in is hardcoded in terms of the horn reference sound matching.
 
 # Background
-This project came out of a real workflow problem. A teammate a while back had built scaffolding for an automated video cutting pipeline which compared the raw waveform of a horn sound audio signal and the waveform of the video we were trying to detect the horn sound in in order to crop it and keep the 10 seconds before the horn sound played and the 120 seconds after (using librosa).
+This project came out of a real workflow problem. A teammate a while back had built scaffolding for an automated video cutting pipeline which used direct cross-correlation between the reference horn waveform and each video’s extracted audio. 
+The goal was to crop it and keep the 10 seconds before the horn sound played and the 120 seconds after (using librosa).
 
-I refactored the pipeline in various ways including orchestrating a bash-side to scale processing of videos hosted on OneDrive. I also engineered better features than comparing raw waveforms, added a sliding window comparison component, and then trained a logistic regression using the same windows in the properly extracted videos compared to the improperly extracted videos to improve detection even further.
+I refactored the pipeline in various ways including orchestrating a bash-side to scale processing of videos hosted on OneDrive. I also engineered horn specific features, added a sliding window comparison component, and then trained a logistic regression using the same windows in the properly extracted videos compared to the improperly extracted videos to improve detection even further.
 
 Before my method 194 out of 407 processed videos failed meaning a fail rate of about 47.6% of videos.
 
-After incorporating sRQA (symbolic Recurrence Quantification Analysis) features alongside, FFT/harmonic features, 33 out of 407 processed videos failed, bringing the fail rate down to approximately 8.1%. Eventually, this was dropped as other work took over, and we didn't have that many videos to cut but, it was a very interesting feature engineering sidequest for me personally!
+After incorporating sRQA and FFT/harmonic features, 33 out of 407 processed videos failed, bringing the fail rate down to approximately 8.1%. Eventually, this was dropped as other work took over, and we didn't have that many more videos to cut once the fail rate was already low enough but, it was a very interesting feature engineering sidequest for me personally!
 
 # Feature Engineering and Model Incorporation
 
-## The “better features” (FFT band + harmonics)
-Look in:
-- `vid_processing_modules/feature_extraction.py`
-- `vid_processing_modules/vid_detection_utils.py`
+## The original “better features” (FFT band + harmonics)
+The core idea was to move away from raw waveform comparison and instead compare the *frequency content* of each 1-second candidate window. The horn had a distinct frequency profile, so I inspected a spectrogram and identified a focused “band of interest” that captured the signal well: 640–3400 Hz.
 
-The core idea is: instead of comparing raw waveforms, compare the *frequency content* of a 1-second window in a specific band.
+The reference template was a 1-second horn clip from a public SFX database. In theory, this template could be replaced with another target sound, as long as the relevant frequency band and envelope are re-estimated.
 
-What’s hardcoded here (and where):
-- **Band-pass region**: `640–3400 Hz` (see band mask inside both `prepare_horn_template()` and `detect_horn()`).
-- **Template**: a 1.0s clip from the reference horn file (`reference_audio/reference_event.wav`).
-- **Harmonics**: multipliers `[1, 2, 3]` to build a “harmonic index set” from the strongest bins of the horn template.
+The features:
+- `peak_match` — dot product between the horn-template FFT bins and candidate-window FFT bins at the selected 1x, 2x, and 3x harmonic indices.
+- `peak_energy` — total candidate-window energy at those selected 1x, 2x, and 3x harmonic indices.
+- `raw_score` — the score used without a model: `peak_match * concentration`, rewarding windows that both match the horn template and concentrate energy in the expected harmonic bins (more on this below).
 
-What actually gets computed (features):
-- `peak_match` — dot product between horn-template FFT bins and window FFT bins at the selected harmonic indices.
-- `peak_energy` — total energy in those harmonic bins.
-- `total_band_energy` — total energy in the whole 640–3400 Hz band.
-- `concentration` — `peak_energy / total_band_energy`.
-- `raw_score` — `peak_match * concentration` (this is the “no-model” score).
 
-(See `extract_detector_features()` in `feature_extraction.py` and `extract_window_features()` in `vid_detection_utils.py`.)
+When theres no model:
 
-## Sliding window detection
-Look in:
-- `vid_processing_modules/vid_detection_utils.py` (`sliding_window_detection()` and `detect_horn()`)
+- A sliding window approach is used where starting from the 0th second, and in .5s hops, overlapping windows are scaned and `raw_score` is calculated.
+- The video with the best raw score is how our video cutting point is decided on.
 
-Detection scans the audio with:
-- window size: **1.0s**
-- hop size: **0.05s** (50ms)
 
-It scores every window and keeps the best one (highest `raw_score` if no model, or highest model probability if a model is loaded).
+## Model Training
 
-## Model scoring (optional)
-Look in:
-- `vid_processing_modules/vid_detection_utils.py` (`score_window()`)
+Once I had a set of videos I knew for sure had been succesfully cut or not succesfully cut, what I realized I was able to do next was label each with either a 0 (fail) or a 1 (pass) meaning I essentially had a labeled dataset.
 
-If `model_path` is provided, the model is loaded with `joblib` and `score_window()` switches from `raw_score` to:
-- The current model uses 18 features: the original 4 FFT/harmonic features plus 14 sRQA features derived from the RMS energy envelope of each audio window. See extract_sRQA_features_from_audio() in feature_extraction.py for the full sRQA implementation
+So, taking a step back I thought, well if we are already calculating theese two features lets add two more:
 
-The feature columns it expects are hardcoded as:
-- `FEATURES = ["peak_match","peak_energy","total_band_energy","concentration","RR","DET","L","Lmax","DIV","ENTR","LAM","TT","Vmax","VENTR","MRT","RTE","NMPRT","TREND"]`
+- `total_band_energy` — total candidate-window energy across the full 640–3400 Hz band.
+- `concentration` — proportion of band energy concentrated in the selected harmonic indices: `peak_energy / total_band_energy`.
+
+And one of our PIs had recently submitted software on [sRQA](https://doi.org/10.64898/2026.03.31.715624), that motivated me to try sRQA-style features on the horn-detection problem:
+
+
+
+Thus the full set of feature I extracted from all videos became:
+`["peak_match","peak_energy","total_band_energy","concentration","RR","DET","L","Lmax","DIV","ENTR","LAM","TT","Vmax","VENTR","MRT","RTE","NMPRT","TREND"]`
 
 Model file paths to pay attention to:
 - `batch_vid_processing.sh` points `MODEL` at: `models/event_logistic_model.joblib`
 - `vid_processing_modules/model_training.py` saves to: `feature_sets/horn_logistic_model_v2.joblib`
-
+![sRQA feature schematic](resources/sRQA.png)
 So if you’re training with `model_training.py` and then running the batch crop pipeline, either:
 - move/rename the trained joblib into `models/event_logistic_model.joblib`, **or**
 - update `MODEL=...` in `batch_vid_processing.sh` to point at `feature_sets/horn_logistic_model_v2.joblib`
 
-## Feature CSV generation (the stuff you train on)
-Look in:
-- `vid_processing_modules/feature_matrix_extraction.py`
-- `batch_feature_extraction.sh`
-
-`feature_matrix_extraction.py` is the thing that actually builds window-level rows + labels and writes a CSV.
-`batch_feature_extraction.sh` is the “run it across everything in batches” wrapper; it calls:
-
-- `python vid_processing_modules/feature_matrix_extraction.py "$BATCH" "$REF" "$TRAINING_CSV"`
-
-and appends into the master CSV at:
-- `feature_sets/event_training_features_master.csv` (set by `TRAINING_CSV=...` in `batch_feature_extraction.sh`)
-
-Hardcoded parts inside `feature_matrix_extraction.py`:
-- `WINDOWS = [(9.5, 10.5), (10.5, 11.5)]`
-- `TARGET_SR = 16000`
-- the example “failure list” (`FAILED_CUTS_new`) used to assign `label`
-
-
 ## Model training 
-Look in:
-- `vid_processing_modules/model_training.py`
 
 What it does:
 - reads: `feature_sets/horn_training_features_master.csv`
