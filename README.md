@@ -4,15 +4,13 @@ Hybrid Bash + Python pipeline for processing OneDrive-hosted videos with batchin
 I did my best to generalize it for public viewing, but many parts are hardcoded for our specific use case. For example the band we are most interested in is hardcoded in terms of the horn reference sound matching.
 
 # Background
-This project came out of a real workflow problem. A teammate a while back had built scaffolding for an automated video cutting pipeline which compared the raw waveform of a horn sound audio signal (using librosa) and the waveform of the video we were trying to detect the horn sound in.
-
-The goal was to crop it and keep the 10 seconds before the horn sound played and the 120 seconds after.
+This project came out of a real workflow problem. A teammate a while back had built scaffolding for an automated video cutting pipeline which compared the raw waveform of a horn sound audio signal and the waveform of the video we were trying to detect the horn sound in in order to crop it and keep the 10 seconds before the horn sound played and the 120 seconds after (using librosa).
 
 I refactored the pipeline in various ways including orchestrating a bash-side to scale processing of videos hosted on OneDrive. I also engineered better features than comparing raw waveforms, added a sliding window comparison component, and then trained a logistic regression using the same windows in the properly extracted videos compared to the improperly extracted videos to improve detection even further.
 
 Before my method 194 out of 407 processed videos failed meaning a fail rate of about 47.6% of videos.
 
-After incorporating sRQA (symbolic Recurrence Quantification Analysis) features alongside the FFT/harmonic features, 33 out of 407 processed videos failed, bringing the fail rate down to approximately 8.1%.
+After incorporating sRQA (symbolic Recurrence Quantification Analysis) features alongside, FFT/harmonic features, 33 out of 407 processed videos failed, bringing the fail rate down to approximately 8.1%. Eventually, this was dropped as other work took over, and we didn't have that many videos to cut but, it was a very interesting feature engineering sidequest for me personally!
 
 # Feature Engineering and Model Incorporation
 
