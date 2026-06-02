@@ -4,7 +4,7 @@
 # $1 - list of input script paths (passed as arguments)
 #
 validate_input_scripts(){
-    local scripts=("$@") #$@ captures all arguments passed to the function as an array
+    local scripts=("$@") 
     for script in "${scripts[@]}"; do
         if [ ! -e "$script" ]; then
             echo "Error: Required file '$script' not found."
@@ -24,9 +24,9 @@ validate_input_scripts(){
 # $3 - batch size (number of files to include in each batch)
 
 get_next_batch() {
-    local -n files_ref=$1   # reference to main files array
-    local -n batch_ref=$2   # reference to batch output
-    local size=$3           # batch size
+    local -n files_ref=$1   
+    local -n batch_ref=$2   
+    local size=$3           
 
     batch_ref=( "${files_ref[@]:0:size}" )
     files_ref=( "${files_ref[@]:size}" )
@@ -75,26 +75,24 @@ done
     ls -lh "$BATCH"
 }
 
-# function to download the current batch of files locally by forcing OneDrive to sync them
+# Check which files in the current batch did not produce cropped outputs.
 #
-#Arguments:
-# $1 - array containing the file paths to download (passed by reference)
-# 
+# Arguments:
+#   $1 - batch array name containing the original video paths
 
 identify_unprocessed_files() {
     local -n batch_ref="$1"
-    
+
     for file in "${batch_ref[@]}"; do
-        base=$(basename "$file") #extract the file name from the path
-        name="${base%.*}" #remove the file extension to get the base name
+        base=$(basename "$file")
+        name="${base%.*}"
         expected="$BATCH/cropped_videos/${name}_cut.mp4"
 
-    if [ ! -f "$expected" ]; then
-        echo "Missing output for: $file"
-        echo "$file" >> "$FAILED_LOG"
-    fi
-done
-
+        if [ ! -f "$expected" ]; then
+            echo "Missing output for: $file"
+            echo "$file" >> "$FAILED_LOG"
+        fi
+    done
 }
 
 # Waits until a file stops changing size locally.
