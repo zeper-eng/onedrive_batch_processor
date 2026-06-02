@@ -1,12 +1,3 @@
-#End-to-end video processing pipeline:
-#
-#- Extracts audio from video files
-#- Detects horn event via cross-correlation
-#- Crops video around detected event
-#- Outputs processed clips and summary CSV
-#
-#Designed for batch processing of large, cloud-hosted datasets.
-
 #!/usr/bin/env bash
 set -euo pipefail
 
